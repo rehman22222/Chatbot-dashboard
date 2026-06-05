@@ -1,7 +1,7 @@
 {
-  "name": "realtime-dashboard-websocket",
+  "name": "pulseops-realtime-monitoring-dashboard",
   "version": "1.0.0",
-  "description": "MERN dashboard with WebSocket connectivity for live data display",
+  "description": "PulseOps real-time WebSocket monitoring dashboard for live operations telemetry",
   "private": true,
   "workspaces": [
     "client",

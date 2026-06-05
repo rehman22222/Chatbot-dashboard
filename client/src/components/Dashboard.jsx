@@ -1,75 +1,73 @@
+import { AlertCircle } from 'lucide-react';
 import { useDashboardStore } from '../store/useDashboardStore';
+import DashboardControls from './DashboardControls';
+import LiveDataTable from './LiveDataTable';
+import LoadingSpinner from './LoadingSpinner';
 import MetricsCards from './MetricsCards';
 import MetricsChart from './MetricsChart';
-import LiveDataTable from './LiveDataTable';
+import ServiceHealth from './ServiceHealth';
 
 const Dashboard = () => {
-  const { data, isLoading, error, isConnected } = useDashboardStore();
+  const { data, isLoading, error, isConnected, lastUpdate } = useDashboardStore();
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
-      <div className="text-center py-12">
-        <div className="text-lg font-medium text-gray-600 mb-2">
-          Loading dashboard...
-        </div>
-      </div>
+      <section className="panel flex min-h-[420px] items-center justify-center p-6">
+        <LoadingSpinner text="Opening PulseOps WebSocket stream..." />
+      </section>
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
-      <div className="text-center py-12">
-        <div className="text-red-600 text-lg font-medium mb-2">
-          Error loading dashboard
+      <section className="panel flex min-h-[360px] items-center justify-center p-6 text-center">
+        <div>
+          <AlertCircle className="mx-auto mb-4 h-10 w-10 text-rose-300" aria-hidden="true" />
+          <h2 className="text-xl font-semibold text-white">PulseOps could not load telemetry</h2>
+          <p className="mt-2 max-w-lg text-sm text-zinc-400">{error}</p>
         </div>
-        <div className="text-gray-600">{error}</div>
-      </div>
+      </section>
     );
   }
 
-  if (!isConnected) {
+  if (!isConnected && !data) {
     return (
-      <div className="text-center py-12">
-        <div className="text-gray-600 text-lg font-medium mb-2">
-          Connecting to server...
+      <section className="panel flex min-h-[360px] items-center justify-center p-6 text-center">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Connecting to PulseOps API</h2>
+          <p className="mt-2 max-w-lg text-sm text-zinc-400">
+            Keep the Node.js Socket.IO server running so live telemetry can reach this dashboard.
+          </p>
         </div>
-        <div className="text-gray-500">
-          Please wait while we establish a connection
-        </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Metrics Cards */}
+    <div className="space-y-6">
+      <DashboardControls />
       <MetricsCards />
-      
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            System Metrics
-          </h2>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
+        <section className="panel p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Operations History</h2>
+              <p className="text-sm text-zinc-500">Latency, utilization, and error pressure over the live socket window.</p>
+            </div>
+            <div className="text-xs font-medium text-zinc-500">
+              {lastUpdate ? `Last packet ${new Date(lastUpdate).toLocaleTimeString()}` : 'Waiting for packet'}
+            </div>
+          </div>
           <MetricsChart />
-        </div>
-        
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Live Events
-          </h2>
-          <LiveDataTable />
-        </div>
+        </section>
+
+        <ServiceHealth />
       </div>
-      
-      {/* Last Update Info */}
-      {data && (
-        <div className="text-center text-sm text-gray-500">
-          Last updated: {new Date(data.timestamp).toLocaleString()}
-        </div>
-      )}
+
+      <LiveDataTable />
     </div>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

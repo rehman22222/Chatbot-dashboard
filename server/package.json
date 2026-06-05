@@ -1,7 +1,7 @@
 {
-  "name": "dashboard-server",
+  "name": "pulseops-server",
   "version": "1.0.0",
-  "description": "WebSocket server for real-time dashboard data",
+  "description": "Socket.IO backend for PulseOps real-time operations telemetry",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

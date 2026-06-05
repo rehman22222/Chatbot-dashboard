@@ -1,51 +1,66 @@
+import { Wifi, WifiOff } from 'lucide-react';
 import { useDashboardStore } from '../store/useDashboardStore';
 
+const statusConfig = {
+  connected: {
+    label: 'Connected',
+    detail: 'Live updates',
+    icon: Wifi,
+    dot: 'bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.8)]',
+    text: 'text-emerald-100',
+    border: 'border-emerald-300/25',
+    background: 'bg-emerald-400/10',
+  },
+  connecting: {
+    label: 'Connecting',
+    detail: 'Opening socket',
+    icon: Wifi,
+    dot: 'bg-amber-300',
+    text: 'text-amber-100',
+    border: 'border-amber-300/25',
+    background: 'bg-amber-400/10',
+  },
+  error: {
+    label: 'Connection error',
+    detail: 'Retrying',
+    icon: WifiOff,
+    dot: 'bg-rose-300',
+    text: 'text-rose-100',
+    border: 'border-rose-300/25',
+    background: 'bg-rose-400/10',
+  },
+  disconnected: {
+    label: 'Disconnected',
+    detail: 'Waiting',
+    icon: WifiOff,
+    dot: 'bg-zinc-500',
+    text: 'text-zinc-200',
+    border: 'border-white/10',
+    background: 'bg-white/[0.04]',
+  },
+};
+
 const ConnectionStatus = () => {
-  const { isConnected, isConnecting, connectionError } = useDashboardStore();
-  
-  const getStatusConfig = () => {
-    if (isConnected) {
-      return {
-        text: 'Connected',
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
-        indicatorClass: 'bg-green-500'
-      };
-    }
-    if (isConnecting) {
-      return {
-        text: 'Connecting...',
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
-        borderColor: 'border-yellow-200',
-        indicatorClass: 'bg-yellow-500'
-      };
-    }
-    return {
-      text: 'Disconnected',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      indicatorClass: 'bg-red-500'
-    };
-  };
-  
-  const config = getStatusConfig();
-  
+  const { getConnectionStatus, connectionError } = useDashboardStore();
+  const status = getConnectionStatus();
+  const config = statusConfig[status];
+  const Icon = config.icon;
+
   return (
-    <div className={`flex items-center gap-3 px-4 py-2 rounded-lg border ${config.bgColor} ${config.borderColor}`}>
-      <div className={`w-3 h-3 rounded-full ${config.indicatorClass} ${isConnected ? 'animate-pulse' : ''}`} />
-      <span className={`text-sm font-medium ${config.color}`}>
-        {config.text}
-      </span>
-      {connectionError && (
-        <span className="text-xs text-gray-500 ml-2">
-          ({connectionError})
-        </span>
-      )}
+    <div
+      className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 ${config.border} ${config.background}`}
+      title={connectionError || config.detail}
+    >
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${config.dot} ${status === 'connected' ? 'animate-pulse' : ''}`} />
+      <Icon className={`h-4 w-4 shrink-0 ${config.text}`} aria-hidden="true" />
+      <div className="min-w-0">
+        <div className={`text-xs font-semibold uppercase tracking-[0.16em] ${config.text}`}>
+          {config.label}
+        </div>
+        <div className="truncate text-xs text-zinc-500">{connectionError || config.detail}</div>
+      </div>
     </div>
   );
 };
 
-export default ConnectionStatus; 
+export default ConnectionStatus;

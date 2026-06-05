@@ -1,299 +1,259 @@
-# Real-time Dashboard with WebSocket
+# PulseOps - Real-Time WebSocket Monitoring Dashboard
 
-A modern MERN stack dashboard application that displays live system metrics and events using WebSocket connections. Built with React, Node.js, Express, Socket.io, and Tailwind CSS.
+PulseOps is a polished portfolio-ready monitoring dashboard built with React, Express, and Socket.IO. It streams live operations telemetry from a Node.js backend to a dark professional dashboard, showing API latency, infrastructure load, memory pressure, active users, error rate, transactions per minute, service health, and incident-style event updates.
 
-![Dashboard Preview](https://img.shields.io/badge/Status-Live%20Demo-brightgreen)
-![React](https://img.shields.io/badge/React-18.2.0-blue)
-![Node.js](https://img.shields.io/badge/Node.js-18+-green)
-![Socket.io](https://img.shields.io/badge/Socket.io-4.7.4-orange)
+The application is intentionally still real-time: the backend emits Socket.IO updates every two seconds, the frontend keeps a rolling history for charts, and operators can pause the live view, filter events, clear the feed, or manually request a fresh payload.
 
-## ✨ Features
+## Tech Stack
 
-- 🚀 **Real-time Data**: Live system metrics and events via WebSocket
-- 📊 **Interactive Charts**: Beautiful SVG-based charts with historical data
-- 🎨 **Modern UI**: Clean, responsive design with Tailwind CSS
-- 🔄 **Auto-reconnection**: Robust WebSocket connection with automatic reconnection
-- 📱 **Responsive**: Works on desktop and mobile devices
-- ⚡ **Fast**: Built with Vite for lightning-fast development
-- 🎯 **Type-safe**: Modern JavaScript with proper error handling
-- 🌐 **Live Status**: Real-time connection status indicator
+- React 18 and Vite
+- Tailwind CSS
+- Zustand state management
+- Socket.IO client and server
+- Node.js and Express
+- CORS and dotenv for deployment configuration
 
-## 🛠️ Tech Stack
+## Features
 
-### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling
-- **Zustand** - State management
-- **Socket.io Client** - WebSocket communication
+- Real-time Socket.IO telemetry stream
+- Live connection status and reconnect-aware UI
+- Premium dark operations dashboard
+- Metrics cards for API latency, CPU/load, memory, active users, error rate, and transactions per minute
+- Responsive SVG history chart
+- Service health panel with operational, degraded, and incident states
+- Real-time event feed with critical, warning, and info severities
+- Pause/resume stream control
+- Severity filter
+- Clear events button
+- Manual refresh using the existing `requestData` WebSocket event
+- Deployment-ready environment variables for separate frontend and backend hosting
+- Optional real monitoring mode for the deployed Loadshedding Tracker backend
 
-### Backend
-- **Node.js** - Runtime environment
-- **Express** - Web framework
-- **Socket.io** - WebSocket server
-- **CORS** - Cross-origin resource sharing
+## WebSocket Events
 
-## 📁 Project Structure
+PulseOps keeps the original Socket.IO pattern simple and easy to inspect.
 
-```
-realtime-dashboard-websocket/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── MetricsCards.jsx
-│   │   │   ├── MetricsChart.jsx
-│   │   │   ├── LiveDataTable.jsx
-│   │   │   └── ConnectionStatus.jsx
-│   │   ├── store/         # Zustand store
-│   │   │   └── useDashboardStore.js
-│   │   ├── services/      # WebSocket service
-│   │   │   └── websocketService.js
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── postcss.config.js
-├── server/                 # Node.js backend
-│   ├── src/
-│   │   └── index.js       # Express + Socket.io server
-│   └── package.json
-├── package.json           # Root workspace config
-└── README.md
-```
+### Server to client: `data`
 
-## 🚀 Quick Start
+Emitted immediately on connection, every two seconds afterward, and whenever the client asks for a manual refresh.
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/falakthkr/realtime-dashboard-websocket.git
-   cd realtime-dashboard-websocket
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm run install:all
-   ```
-
-3. **Start the development servers:**
-   ```bash
-   npm run dev
-   ```
-
-   This will start both the backend (port 3001) and frontend (port 5173) servers concurrently.
-
-4. **Open your browser:**
-   Navigate to `http://localhost:5173` to view the dashboard.
-
-### Manual Setup
-
-If you prefer to run servers separately:
-
-**Backend:**
-```bash
-cd server
-npm install
-npm run dev
-```
-
-**Frontend:**
-```bash
-cd client
-npm install
-npm run dev
-```
-
-## 📊 Dashboard Features
-
-### 1. Connection Status
-- Green pulsing dot for connected status
-- Real-time connection monitoring
-- Automatic reconnection logic
-
-### 2. Metrics Cards
-- CPU, Memory, Network, Disk usage
-- Active users count
-- Color-coded trend indicators (High/Medium/Low)
-
-### 3. Interactive Charts
-- SVG-based line charts with historical data
-- Real-time updates every 2 seconds
-- Multiple metrics visualization
-
-### 4. Live Events Table
-- Color-coded event types (info, warning, error)
-- Real-time event streaming
-- Timestamp formatting
-
-## 🔌 WebSocket Events
-
-The server emits the following events:
-
-- `data`: System metrics and events (every 2 seconds)
-- `connect`: Client connection established
-- `disconnect`: Client disconnected
-
-### Sample Data Structure
-```javascript
+```js
 {
-  timestamp: "2025-06-28T19:12:06.045Z",
+  source: "stream", // "initial", "stream", or "manual"
+  timestamp: "2026-06-04T14:20:00.000Z",
   metrics: {
-    cpu: 45.2,
-    memory: 67.8,
-    network: 234.5,
-    disk: 23.1
+    apiLatency: 142.5,
+    cpuLoad: 48.2,
+    memoryUsage: 62.1,
+    activeUsers: 1840,
+    errorRate: 0.42,
+    transactionsPerMinute: 1280
   },
-  events: [
+  services: [
     {
-      id: 1732834326123,
-      type: "info",
-      message: "System event 123",
-      timestamp: "2025-06-28T19:12:06.045Z"
+      name: "API Gateway",
+      region: "us-east-1",
+      latency: 128.4,
+      status: "operational",
+      uptime: 99.98
     }
   ],
-  users: 1234,
-  transactions: 5678
+  events: [
+    {
+      id: "1780000000000-1",
+      severity: "info",
+      type: "info",
+      service: "API Gateway",
+      message: "Synthetic checkout probe completed within SLA",
+      source: "stream",
+      timestamp: "2026-06-04T14:20:00.000Z"
+    }
+  ],
+  summary: {
+    status: "operational",
+    incidentCount: 0,
+    degradedCount: 0,
+    healthyServices: 6,
+    totalServices: 6
+  }
 }
 ```
 
-## 🛠️ Development
+### Client to server: `requestData`
 
-### Available Scripts
+Sent when the user clicks Refresh. The server responds to that socket with a `data` payload whose `source` is `manual`.
 
-**Root:**
-- `npm run dev` - Start both servers in development mode
-- `npm run install:all` - Install dependencies for all workspaces
+### Built-in Socket.IO events
 
-**Server:**
-- `npm run dev:server` - Start server with nodemon
-- `npm run start` - Start server in production mode
+- `connect` updates the dashboard to a live state.
+- `disconnect` keeps the last data visible while showing the connection loss.
+- `connect_error` stores the connection error for the status indicator.
 
-**Client:**
-- `npm run dev:client` - Start Vite dev server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+## Local Setup
 
-### State Management (Zustand)
+### Prerequisites
 
-The dashboard uses Zustand for state management:
+- Node.js 18+
+- npm
 
-```javascript
-{
-  // Connection state
-  isConnected: boolean,
-  isConnecting: boolean,
-  connectionError: string | null,
-  
-  // Data state
-  data: object | null,
-  lastUpdate: string | null,
-  historicalData: array,
-  
-  // UI state
-  isLoading: boolean,
-  error: string | null
-}
-```
-
-### WebSocket Service
-
-The `websocketService` handles:
-- Connection management
-- Automatic reconnection with exponential backoff
-- Event handling
-- Error recovery
-
-## 🌐 API Endpoints
-
-### Health Check
-- `GET /health` - Server health status
-
-### WebSocket Events
-- `data` - Receive live system data
-- `requestData` - Request immediate data update
-
-## 🚀 Production Deployment
-
-### Build the Application
+### Install
 
 ```bash
-# Build frontend
-cd client
-npm run build
-
-# Start production server
-cd ../server
-npm run start
+npm install
 ```
 
-### Environment Variables
+### Run frontend and backend together
 
-Create a `.env` file in the server directory:
+```bash
+npm run dev
+```
+
+The backend runs on `http://localhost:3001` and the frontend runs on `http://localhost:5173`.
+
+### Run separately
+
+```bash
+npm run dev:server
+npm run dev:client
+```
+
+### Build frontend
+
+```bash
+npm run build
+```
+
+## Environment Variables
+
+### Frontend
+
+Copy `client/.env.example` to `client/.env` for local overrides, or set this in Netlify.
 
 ```env
-NODE_ENV=production
+VITE_SOCKET_URL=https://your-pulseops-backend.onrender.com
+```
+
+Default local fallback:
+
+```env
+VITE_SOCKET_URL=http://localhost:3001
+```
+
+### Backend
+
+Copy `server/.env.example` to `server/.env` for local overrides, or set these in Render.
+
+```env
 PORT=3001
-CLIENT_URL=https://your-domain.com
+CLIENT_URL=https://your-pulseops-frontend.netlify.app
+MONITORED_APP_NAME=Loadshedding Tracker
+MONITORED_APP_URL=https://loadshedding-api-krv9.onrender.com
+MONITORED_APP_TOKEN=your-shared-monitoring-token
+MONITORING_POLL_INTERVAL_MS=5000
 ```
 
-### Docker Deployment
+The server always allows local Vite origins for development. `CLIENT_URL` adds your production frontend origin and may contain comma-separated origins:
 
-```dockerfile
-# Dockerfile for production
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-EXPOSE 3001
-
-CMD ["npm", "start"]
+```env
+CLIENT_URL=http://localhost:5173,https://your-pulseops-frontend.netlify.app
 ```
 
-## 🤝 Contributing
+If `MONITORED_APP_URL` and `MONITORED_APP_TOKEN` are set, PulseOps polls the monitored app at:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```text
+GET /api/monitoring/metrics
+```
 
-## 📝 License
+and streams those real metrics to the dashboard through Socket.IO. If either value is missing, PulseOps falls back to simulated portfolio telemetry.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Deployment Guide
 
-## 🙏 Acknowledgments
+### Backend on Render
 
-- [Socket.io](https://socket.io/) for WebSocket functionality
-- [Tailwind CSS](https://tailwindcss.com/) for styling
-- [Zustand](https://github.com/pmndrs/zustand) for state management
-- [Vite](https://vitejs.dev/) for build tooling
+1. Create a new Web Service from this repository.
+2. Set the root directory to `server`.
+3. Use `npm install` as the build command.
+4. Use `npm start` as the start command.
+5. Add environment variables:
+   - `PORT` can usually be left unset because Render injects it automatically.
+   - `CLIENT_URL=https://your-pulseops-frontend.netlify.app`
+   - `MONITORED_APP_NAME=Loadshedding Tracker`
+   - `MONITORED_APP_URL=https://loadshedding-api-krv9.onrender.com`
+   - `MONITORED_APP_TOKEN=<same token configured as MONITORING_TOKEN in Loadshedding>`
+   - `MONITORING_POLL_INTERVAL_MS=5000`
+6. Deploy and copy the backend URL.
+7. Confirm the health check works at `https://your-backend-url/health`.
 
-## 📞 Support
+### Frontend on Netlify
 
-For issues and questions, please open an issue on GitHub.
+1. Create a new Netlify site from this repository.
+2. Set the base directory to `client`.
+3. Netlify can use `client/netlify.toml`, which sets:
+   - build command: `npm run build`
+   - publish directory: `dist`
+   - SPA fallback redirects to `index.html`
+4. Add `VITE_SOCKET_URL=https://your-render-backend.onrender.com`.
+5. Deploy the site.
 
----
+### Deployment Order
 
-⭐ **Star this repository if you found it helpful!** 
+1. Pick or create the Netlify site URL first, such as `https://your-pulseops-frontend.netlify.app`.
+2. Deploy the Render backend with `CLIENT_URL` set to that Netlify URL.
+3. Deploy the Netlify frontend with `VITE_SOCKET_URL` set to the Render backend URL.
+4. Open the Netlify URL and verify the status pill says `Connected`.
 
----
+Do not set `VITE_SOCKET_URL` to the Render health endpoint. Use the backend origin only, for example `https://your-render-backend.onrender.com`.
 
-**Built by Falak Thackar**
+### Loadshedding Tracker Monitoring Setup
 
-I’m a full stack developer who builds clean, working products using React, Node.js, MongoDB, and React Native.  
-Open to remote/hybrid roles and freelance MVP builds.
+The Loadshedding backend must expose a protected monitoring endpoint:
 
-👉 [LinkedIn](https://linkedin.com/in/falakthackar) | [Email](mailto:falakthackar@gmail.com)
+```text
+GET https://loadshedding-api-krv9.onrender.com/api/monitoring/metrics
+Authorization: Bearer <MONITORING_TOKEN>
+```
+
+Set the same secret in both places:
+
+- Loadshedding Render backend: `MONITORING_TOKEN`
+- PulseOps Render backend: `MONITORED_APP_TOKEN`
+
+This keeps the monitoring endpoint private while allowing PulseOps to poll it server-to-server.
+
+## Scripts
+
+Root workspace:
+
+- `npm run dev` starts the server and client together.
+- `npm run dev:server` starts the Socket.IO backend.
+- `npm run dev:client` starts the Vite frontend.
+- `npm run build` builds the frontend.
+- `npm run start` starts the backend.
+
+## Project Structure
+
+```text
+realtime-dashboard-websocket/
+|-- client/
+|   |-- .env.example
+|   |-- netlify.toml
+|   |-- src/
+|   |   |-- components/
+|   |   |-- services/websocketService.js
+|   |   |-- store/useDashboardStore.js
+|   |   |-- App.jsx
+|   |   `-- index.css
+|   |-- index.html
+|   `-- package.json
+|-- server/
+|   |-- .env.example
+|   |-- src/index.js
+|   `-- package.json
+|-- package.json
+|-- LICENSE
+`-- README.md
+```
+
+## License and Attribution
+
+This project remains MIT licensed. It is based on the original open-source repository [falakthkr/realtime-dashboard-websocket](https://github.com/falakthkr/realtime-dashboard-websocket), with custom PulseOps branding, operations-focused telemetry, UI redesign, dashboard controls, and deployment documentation added for portfolio presentation.

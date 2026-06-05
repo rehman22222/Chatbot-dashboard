@@ -3,33 +3,54 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    background: #08090d;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply min-h-screen bg-[#08090d] text-zinc-100 antialiased;
+  }
+
+  ::selection {
+    @apply bg-cyan-300 text-zinc-950;
   }
 }
 
 @layer components {
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  .dashboard-shell {
+    @apply min-h-screen bg-[#08090d] text-zinc-100;
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 320px),
+      linear-gradient(90deg, rgba(103, 232, 249, 0.035) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: auto, 56px 56px, 56px 56px;
   }
-  
+
+  .panel {
+    @apply rounded-lg border border-white/10 bg-[#111217]/95 shadow-[0_18px_60px_rgba(0,0,0,0.34)];
+  }
+
   .metric-card {
-    @apply card hover:shadow-md transition-shadow duration-200;
+    @apply rounded-lg border border-white/10 bg-[#12141a]/95 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.28)] transition duration-200 hover:border-white/20;
   }
-  
-  .status-indicator {
-    @apply w-3 h-3 rounded-full;
+
+  .button {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-45;
   }
-  
-  .status-connected {
-    @apply bg-success-500 animate-pulse-slow;
+
+  .button-primary {
+    @apply border-cyan-300/30 bg-cyan-300 text-zinc-950 hover:bg-cyan-200;
   }
-  
-  .status-disconnected {
-    @apply bg-error-500;
+
+  .button-secondary {
+    @apply border-white/10 bg-white/[0.06] text-zinc-100 hover:border-cyan-300/25 hover:bg-cyan-300/10;
   }
-  
-  .status-connecting {
-    @apply bg-warning-500 animate-pulse;
+
+  .button-ghost {
+    @apply border-white/10 bg-transparent text-zinc-300 hover:border-rose-300/25 hover:bg-rose-400/10 hover:text-rose-100;
   }
-} 
+
+  .control-select {
+    @apply min-h-10 rounded-lg border border-white/10 bg-[#0b0c10] px-3 py-2 text-sm font-medium text-zinc-100 outline-none transition focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/15;
+  }
+}
