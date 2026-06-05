@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -11,6 +12,16 @@ const MONITORED_APP_NAME = process.env.MONITORED_APP_NAME || 'Loadshedding Track
 const MONITORED_APP_URL = (process.env.MONITORED_APP_URL || '').replace(/\/+$/, '');
 const MONITORED_APP_TOKEN = process.env.MONITORED_APP_TOKEN || '';
 const MONITORING_POLL_INTERVAL_MS = Number(process.env.MONITORING_POLL_INTERVAL_MS) || 5000;
+const INGESTION_STALE_AFTER_MS = Number(process.env.INGESTION_STALE_AFTER_MS) || 30000;
+const PUBLIC_PULSEOPS_URL = (process.env.PUBLIC_PULSEOPS_URL || '').replace(/\/+$/, '');
+const DEFAULT_AGENT_PROJECT_ID = process.env.PULSEOPS_DEFAULT_PROJECT_ID || 'project_loadshedding_tracker';
+const DEFAULT_AGENT_API_KEY = process.env.PULSEOPS_DEFAULT_API_KEY || process.env.MONITORED_APP_TOKEN || '';
+const DEFAULT_AGENT_PROJECT_NAME = process.env.PULSEOPS_DEFAULT_PROJECT_NAME || MONITORED_APP_NAME;
+const AGENT_SIGNING_SECRET =
+  process.env.PULSEOPS_SIGNING_SECRET ||
+  DEFAULT_AGENT_API_KEY ||
+  process.env.MONITORED_APP_TOKEN ||
+  'pulseops-local-dev-signing-secret';
 const LOCAL_CLIENT_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 const configuredClientOrigins = (process.env.CLIENT_URL || '')
   .split(',')
@@ -37,12 +48,121 @@ const io = new Server(server, {
 });
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const jitter = (value, amount, min, max) =>
   Number(clamp(value + (Math.random() - 0.5) * amount, min, max).toFixed(2));
 const hasMonitoredAppConfig = Boolean(MONITORED_APP_URL && MONITORED_APP_TOKEN);
+const projects = new Map();
+const ingestedTelemetry = new Map();
+
+function createId(prefix) {
+  return `${prefix}_${crypto.randomBytes(8).toString('hex')}`;
+}
+
+function signAgentKey(projectId, keySecret) {
+  return crypto
+    .createHmac('sha256', AGENT_SIGNING_SECRET)
+    .update(`${projectId}:${keySecret}`)
+    .digest('base64url');
+}
+
+function createApiKey(projectId) {
+  const keySecret = crypto.randomBytes(32).toString('base64url');
+  return `po.v1.${keySecret}.${signAgentKey(projectId, keySecret)}`;
+}
+
+function safeEqual(a, b) {
+  const first = Buffer.from(String(a));
+  const second = Buffer.from(String(b));
+
+  return first.length === second.length && crypto.timingSafeEqual(first, second);
+}
+
+function hashApiKey(apiKey = '') {
+  return crypto.createHash('sha256').update(String(apiKey)).digest('hex');
+}
+
+function isSignedApiKeyValid(projectId, apiKey = '') {
+  const parts = String(apiKey).split('.');
+  if (parts.length !== 4 || parts[0] !== 'po' || parts[1] !== 'v1') {
+    return false;
+  }
+
+  const [, , keySecret, signature] = parts;
+  return safeEqual(signature, signAgentKey(projectId, keySecret));
+}
+
+function getIngestUrl(req) {
+  const origin = PUBLIC_PULSEOPS_URL || `${req.protocol}://${req.get('host')}`;
+  return `${origin.replace(/\/+$/, '')}/api/ingest`;
+}
+
+function registerProject({ id, name, apiKey }) {
+  const projectId = id || createId('project');
+  const projectApiKey = apiKey || createApiKey(projectId);
+  const now = new Date().toISOString();
+  const project = {
+    id: projectId,
+    name: String(name || 'Untitled Project').trim() || 'Untitled Project',
+    apiKeyHash: hashApiKey(projectApiKey),
+    createdAt: now,
+    lastSeenAt: null,
+  };
+
+  projects.set(project.id, project);
+  return { project, apiKey: projectApiKey };
+}
+
+function safeProject(project, req) {
+  const lastSeenAt = project.lastSeenAt ? new Date(project.lastSeenAt).getTime() : 0;
+  const isReceiving = lastSeenAt && Date.now() - lastSeenAt <= INGESTION_STALE_AFTER_MS;
+
+  return {
+    id: project.id,
+    name: project.name,
+    createdAt: project.createdAt,
+    lastSeenAt: project.lastSeenAt,
+    status: isReceiving ? 'receiving' : 'waiting',
+    ingestUrl: getIngestUrl(req),
+  };
+}
+
+function findProjectByCredentials(projectId, apiKey, fallbackName = 'Untitled Project') {
+  if (!projectId || !apiKey) return null;
+
+  const project = projects.get(projectId);
+  const incomingHash = hashApiKey(apiKey);
+  if (project && safeEqual(incomingHash, project.apiKeyHash)) {
+    return project;
+  }
+
+  if (isSignedApiKeyValid(projectId, apiKey)) {
+    if (project) return project;
+
+    const restoredProject = {
+      id: projectId,
+      name: String(fallbackName || projectId).trim() || projectId,
+      apiKeyHash: incomingHash,
+      createdAt: new Date().toISOString(),
+      lastSeenAt: null,
+    };
+
+    projects.set(projectId, restoredProject);
+    return restoredProject;
+  }
+
+  return null;
+}
+
+if (DEFAULT_AGENT_API_KEY) {
+  registerProject({
+    id: DEFAULT_AGENT_PROJECT_ID,
+    name: DEFAULT_AGENT_PROJECT_NAME,
+    apiKey: DEFAULT_AGENT_API_KEY,
+  });
+}
 
 const services = [
   { name: 'API Gateway', region: 'us-east-1', baseLatency: 118 },
@@ -239,7 +359,7 @@ function serviceFromMonitoredData(name, status, latency = 0, region = 'render') 
   };
 }
 
-function eventFromMonitoredData(payload, source, latencyMs) {
+function eventFromMonitoredData(payload, source, latencyMs, appName = MONITORED_APP_NAME) {
   const timestamp = new Date().toISOString();
   const traffic = payload.traffic || {};
   const runtime = payload.runtime || {};
@@ -252,8 +372,8 @@ function eventFromMonitoredData(payload, source, latencyMs) {
       id: `${Date.now()}-${source}`,
       severity: 'critical',
       type: 'critical',
-      service: MONITORED_APP_NAME,
-      message: `${MONITORED_APP_NAME} reported ${payload.status || 'unhealthy'} status`,
+      service: appName,
+      message: `${appName} reported ${payload.status || 'unhealthy'} status`,
       source,
       timestamp,
     };
@@ -299,18 +419,20 @@ function eventFromMonitoredData(payload, source, latencyMs) {
     id: `${Date.now()}-${source}`,
     severity: 'info',
     type: 'info',
-    service: MONITORED_APP_NAME,
+    service: appName,
     message: `${business.totalOutages || 0} outages across ${business.totalAreas || 0} monitored areas`,
     source,
     timestamp,
   };
 }
 
-function normalizeMonitoredPayload(payload, source, requestLatencyMs) {
+function normalizeMonitoredPayload(payload, source, requestLatencyMs, context = {}) {
   const traffic = payload.traffic || {};
   const runtime = payload.runtime || {};
   const business = payload.business || {};
   const services = payload.services || {};
+  const appName = context.name || payload.app || MONITORED_APP_NAME;
+  const appUrl = context.url || payload.url || MONITORED_APP_URL || 'agent-push';
   const apiLatency = Number(traffic.p95LatencyMs || traffic.averageLatencyMs || requestLatencyMs || 0);
   const cpuLoad = Number(runtime.cpu?.loadPercentEstimate || 0);
   const memoryUsage = Number(runtime.hostMemory?.usedPercent || runtime.nodeMemory?.heapUsedPercent || 0);
@@ -335,8 +457,8 @@ function normalizeMonitoredPayload(payload, source, requestLatencyMs) {
     timestamp,
     mode: 'monitored',
     monitoredApp: {
-      name: payload.app || MONITORED_APP_NAME,
-      url: MONITORED_APP_URL,
+      name: appName,
+      url: appUrl,
       status: payload.status || 'unknown',
       uptimeSeconds: runtime.uptimeSeconds || 0,
     },
@@ -353,7 +475,7 @@ function normalizeMonitoredPayload(payload, source, requestLatencyMs) {
       totalAreas: business.totalAreas || 0,
     },
     services: serviceHealth,
-    events: [eventFromMonitoredData(payload, source, requestLatencyMs)],
+    events: [eventFromMonitoredData(payload, source, requestLatencyMs, appName)],
     summary: {
       status: incidentCount > 0 ? 'incident' : degradedCount > 0 ? 'degraded' : 'operational',
       incidentCount,
@@ -447,9 +569,107 @@ async function fetchMonitoredAppData(source = 'stream') {
 }
 
 async function getDashboardData(source = 'stream') {
+  const ingestedData = getLatestIngestedData(source);
+  if (ingestedData) {
+    return ingestedData;
+  }
+
   const monitoredData = await fetchMonitoredAppData(source);
   return monitoredData || generateOperationsData(source);
 }
+
+function getLatestIngestedData(source = 'stream') {
+  const freshEntries = [...ingestedTelemetry.values()]
+    .filter((entry) => Date.now() - entry.receivedAt <= INGESTION_STALE_AFTER_MS)
+    .sort((a, b) => b.receivedAt - a.receivedAt);
+
+  if (!freshEntries.length) {
+    return null;
+  }
+
+  return {
+    ...freshEntries[0].data,
+    source,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+app.get('/api/projects', (req, res) => {
+  res.json({
+    projects: [...projects.values()].map((project) => safeProject(project, req)),
+  });
+});
+
+app.post('/api/projects', (req, res) => {
+  const name = String(req.body?.name || '').trim();
+
+  if (!name) {
+    return res.status(400).json({
+      message: 'Project name is required',
+    });
+  }
+
+  const { project, apiKey } = registerProject({ name });
+  const ingestUrl = getIngestUrl(req);
+
+  res.status(201).json({
+    project: safeProject(project, req),
+    apiKey,
+    env: {
+      PULSEOPS_PROJECT_ID: project.id,
+      PULSEOPS_API_KEY: apiKey,
+      PULSEOPS_INGEST_URL: ingestUrl,
+      PULSEOPS_PUSH_INTERVAL_MS: '5000',
+    },
+    envSnippet: [
+      `PULSEOPS_PROJECT_ID=${project.id}`,
+      `PULSEOPS_API_KEY=${apiKey}`,
+      `PULSEOPS_INGEST_URL=${ingestUrl}`,
+      'PULSEOPS_PUSH_INTERVAL_MS=5000',
+    ].join('\n'),
+  });
+});
+
+app.post('/api/ingest', (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const apiKey = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : req.headers['x-pulseops-api-key'];
+  const projectId = req.headers['x-pulseops-project-id'] || req.body?.projectId;
+  const project = findProjectByCredentials(projectId, apiKey, req.body?.app);
+
+  if (!project) {
+    return res.status(401).json({
+      ok: false,
+      message: 'Invalid PulseOps project credentials',
+    });
+  }
+
+  const payload = {
+    ...req.body,
+    app: req.body?.app || project.name,
+  };
+  const data = normalizeMonitoredPayload(payload, 'agent', payload.traffic?.averageLatencyMs || 0, {
+    name: project.name,
+    url: 'agent-push',
+  });
+  const now = new Date().toISOString();
+
+  project.lastSeenAt = now;
+  projects.set(project.id, project);
+  ingestedTelemetry.set(project.id, {
+    data,
+    receivedAt: Date.now(),
+  });
+
+  io.emit('data', data);
+
+  res.json({
+    ok: true,
+    projectId: project.id,
+    receivedAt: now,
+  });
+});
 
 app.get('/health', (req, res) => {
   res.json({

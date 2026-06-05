@@ -1,6 +1,7 @@
 import { Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useDashboardStore } from '../store/useDashboardStore';
 import { websocketService } from '../services/websocketService';
+import ProjectOnboarding from './ProjectOnboarding';
 
 const severityOptions = [
   { value: 'all', label: 'All events' },
@@ -87,6 +88,8 @@ const DashboardControls = () => {
           <Trash2 className="h-4 w-4" aria-hidden="true" />
           <span>Clear events</span>
         </button>
+
+        <ProjectOnboarding />
       </div>
     </section>
   );
